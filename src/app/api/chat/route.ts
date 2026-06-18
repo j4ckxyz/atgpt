@@ -1,0 +1,69 @@
+import { COCORE_BASE, getApiKey } from "@/lib/cocore";
+
+export const runtime = "nodejs";
+// Streaming responses must not be statically cached or buffered.
+export const dynamic = "force-dynamic";
+
+type ChatBody = {
+  model?: string;
+  messages?: { role: string; content: string }[];
+  friendsOnly?: boolean;
+  max_tokens?: number;
+  temperature?: number;
+  top_p?: number;
+};
+
+export async function POST(req: Request) {
+  const key = await getApiKey();
+  if (!key) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  let body: ChatBody;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  if (!body.model || !Array.isArray(body.messages) || body.messages.length === 0) {
+    return Response.json(
+      { error: "model and at least one message are required" },
+      { status: 400 }
+    );
+  }
+
+  const path = body.friendsOnly
+    ? "/api/v1/private/chat/completions"
+    : "/api/v1/chat/completions";
+
+  const upstream = await fetch(`${COCORE_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: body.model,
+      messages: body.messages,
+      stream: true,
+      max_tokens: body.max_tokens ?? 1024,
+      ...(body.temperature !== undefined
+        ? { temperature: body.temperature }
+        : {}),
+      ...(body.top_p !== undefined ? { top_p: body.top_p } : {}),
+    }),
+  });
+
+  // Pass through the upstream response verbatim — SSE stream on success,
+  // a JSON error envelope (with a stable cocore `code`) on failure.
+  return new Response(upstream.body, {
+    status: upstream.status,
+    headers: {
+      "Content-Type":
+        upstream.headers.get("content-type") ?? "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}

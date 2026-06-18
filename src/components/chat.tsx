@@ -14,12 +14,14 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { prettyModel } from "@/lib/models";
+import { sanitizeAssistant } from "@/lib/sanitize";
 import type { ModelSummary } from "@/lib/cocore";
 import type { ChatMessage } from "@/hooks/use-conversations";
 
@@ -71,6 +73,20 @@ export function Chat({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const atBottomRef = useRef(true);
+
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }
+
+  function scrollToBottom(smooth = false) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }
 
   // Persist messages up to the conversation store (debounced; skip mount).
   const persistRef = useRef(onMessagesChange);
@@ -104,11 +120,9 @@ export function Chat({
       .catch(() => {});
   }, []);
 
+  // Follow new output only when the user is already at the bottom.
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    if (atBottomRef.current) scrollToBottom(false);
   }, [messages, streaming]);
 
   // Auto-grow the textarea.
@@ -132,6 +146,7 @@ export function Chat({
     setMessages(next);
     setInput("");
     setStreaming(true);
+    atBottomRef.current = true; // jump to the message you just sent
     setMessages((m) => [...m, { role: "assistant", content: "" }]);
 
     const controller = new AbortController();
@@ -440,26 +455,21 @@ export function Chat({
         </div>
       ) : (
         <>
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+          <div
+            ref={scrollRef}
+            onScroll={onScroll}
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
             <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
               {messages.map((m, i) =>
                 m.role === "user" ? (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] whitespace-pre-wrap rounded-3xl bg-secondary px-4 py-2.5 text-base leading-relaxed">
+                    <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl bg-secondary px-4 py-2.5 text-base leading-relaxed">
                       {m.content}
                     </div>
                   </div>
                 ) : (
-                  <div key={i} className="flex gap-3">
-                    <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
-                      <Bot className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1 whitespace-pre-wrap pt-0.5 text-base leading-relaxed">
-                      {m.content || (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
+                  <AssistantMessage key={i} content={m.content} />
                 )
               )}
             </div>
@@ -469,6 +479,27 @@ export function Chat({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function AssistantMessage({ content }: { content: string }) {
+  const { text, thinking } = sanitizeAssistant(content);
+  return (
+    <div className="flex gap-3">
+      <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+        <Bot className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1 pt-0.5">
+        {text ? (
+          <Markdown content={text} />
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {thinking ? "Thinking…" : ""}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

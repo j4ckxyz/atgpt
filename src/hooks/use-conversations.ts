@@ -22,7 +22,12 @@ function titleFrom(messages: ChatMessage[]): string {
   const firstUser = messages.find((m) => m.role === "user");
   if (!firstUser) return "New chat";
   const t = firstUser.content.trim().replace(/\s+/g, " ");
-  return t.length > 48 ? t.slice(0, 48) + "…" : t || "New chat";
+  if (!t) return "New chat";
+  if (t.length <= 44) return t;
+  // Cut at the last word boundary before the limit so titles read cleanly.
+  const cut = t.slice(0, 44);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 24 ? cut.slice(0, lastSpace) : cut).trimEnd() + "…";
 }
 
 function newConversation(): Conversation {

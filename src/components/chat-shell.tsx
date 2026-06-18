@@ -61,6 +61,19 @@ export function ChatShell() {
     if (editingId) editRef.current?.focus();
   }, [editingId]);
 
+  // Cmd/Ctrl+Shift+O starts a new chat (the current one is already saved).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        newChat();
+        setOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newChat]);
+
   function handleNewChat() {
     newChat();
     setOpen(false);

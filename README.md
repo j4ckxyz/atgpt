@@ -20,6 +20,10 @@ Built with the App Router, Tailwind v4, and shadcn/ui (new‑york). **Auto
 light/dark** following your OS. Designed to deploy to Vercel with zero
 configuration.
 
+| Dark | Light |
+| ---- | ----- |
+| ![Sign-in, dark](docs/login-dark.png) | ![Sign-in, light](docs/login-light.png) |
+
 ## How auth works
 
 co/core has no OAuth — **your `cocore-…` API key _is_ your identity** (it resolves

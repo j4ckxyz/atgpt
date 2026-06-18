@@ -35,7 +35,7 @@ to your DID server‑side). "Signing in" means pasting that key. The app:
    from the cookie. This keeps the key off the wire to the browser and sidesteps
    CORS.
 
-Mint a key at [console.cocore.dev/api-keys](https://console.cocore.dev/api-keys).
+Get a key at [console.cocore.dev/account](https://console.cocore.dev/account).
 
 ## co/core endpoints used
 

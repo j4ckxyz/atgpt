@@ -21,8 +21,9 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { prettyModel } from "@/lib/models";
 import type { ModelSummary } from "@/lib/cocore";
+import type { ChatMessage } from "@/hooks/use-conversations";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = ChatMessage;
 
 // Friendly messages for co/core's stable error codes.
 const ERROR_COPY: Record<string, string> = {
@@ -46,14 +47,18 @@ const SUGGESTIONS = [
 export function Chat({
   onMenu,
   onNewChat,
+  initialMessages = [],
+  onMessagesChange,
 }: {
   onMenu?: () => void;
   onNewChat?: () => void;
+  initialMessages?: Msg[];
+  onMessagesChange?: (messages: Msg[]) => void;
 }) {
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [model, setModel] = useState("");
   const [friendsOnly, setFriendsOnly] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +71,19 @@ export function Chat({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist messages up to the conversation store (debounced; skip mount).
+  const persistRef = useRef(onMessagesChange);
+  persistRef.current = onMessagesChange;
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    const t = setTimeout(() => persistRef.current?.(messages), 150);
+    return () => clearTimeout(t);
+  }, [messages]);
 
   const selected = models.find((m) => m.modelId === model);
 

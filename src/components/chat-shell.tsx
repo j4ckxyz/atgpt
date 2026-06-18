@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Plus,
   LayoutDashboard,
@@ -10,11 +10,15 @@ import {
   LogOut,
   Wallet,
   X,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Chat } from "@/components/chat";
+import { useConversations } from "@/hooks/use-conversations";
 import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site";
 
@@ -22,11 +26,24 @@ const nf = new Intl.NumberFormat("en-US");
 
 export function ChatShell() {
   const router = useRouter();
-  const [convKey, setConvKey] = useState(0);
+  const {
+    activeId,
+    active,
+    history,
+    newChat,
+    selectChat,
+    deleteChat,
+    renameChat,
+    setActiveMessages,
+  } = useConversations();
+
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
   const [balance, setBalance] = useState<number | null | undefined>(undefined);
   const [currency, setCurrency] = useState("credits");
+  const editRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/status", { cache: "no-store" })
@@ -38,11 +55,25 @@ export function ChatShell() {
         }
       })
       .catch(() => {});
-  }, [convKey]);
+  }, []);
 
-  function newChat() {
-    setConvKey((k) => k + 1);
+  useEffect(() => {
+    if (editingId) editRef.current?.focus();
+  }, [editingId]);
+
+  function handleNewChat() {
+    newChat();
     setOpen(false);
+  }
+
+  function openChat(id: string) {
+    selectChat(id);
+    setOpen(false);
+  }
+
+  function commitRename() {
+    if (editingId) renameChat(editingId, draftTitle);
+    setEditingId(null);
   }
 
   async function logout() {
@@ -56,14 +87,14 @@ export function ChatShell() {
     <div className="flex h-screen overflow-hidden">
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col border-r bg-card/50 p-3 transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col border-r bg-secondary/40 p-3 transition-transform md:static md:translate-x-0",
           open && "translate-x-0"
         )}
       >
@@ -87,33 +118,103 @@ export function ChatShell() {
           </Button>
         </div>
 
-        <Button variant="outline" className="justify-start" onClick={newChat}>
+        <Button
+          variant="outline"
+          className="justify-start bg-card"
+          onClick={handleNewChat}
+        >
           <Plus className="h-4 w-4" />
           New chat
         </Button>
 
-        <Button
-          asChild
-          variant="ghost"
-          className="mt-1 justify-start text-muted-foreground"
-        >
-          <Link href="/dashboard">
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
-          </Link>
-        </Button>
-
-        <div className="flex-1 px-2 py-6">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Conversations aren&apos;t saved in this demo — &ldquo;New chat&rdquo;
-            starts a fresh context.
+        {/* History */}
+        <div className="-mr-1 mt-4 flex min-h-0 flex-1 flex-col">
+          <p className="px-2 pb-1.5 text-xs font-semibold text-muted-foreground">
+            Recent
           </p>
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {history.length === 0 ? (
+              <p className="px-2 py-1 text-xs leading-relaxed text-muted-foreground">
+                Your chats show up here, saved on this device only.
+              </p>
+            ) : (
+              <ul className="space-y-0.5">
+                {history.map((c) => {
+                  const isActive = c.id === activeId;
+                  const isEditing = c.id === editingId;
+                  return (
+                    <li key={c.id}>
+                      {isEditing ? (
+                        <Input
+                          ref={editRef}
+                          value={draftTitle}
+                          onChange={(e) => setDraftTitle(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitRename();
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          className="h-8 bg-card text-sm"
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors",
+                            isActive
+                              ? "bg-accent text-accent-foreground"
+                              : "hover:bg-accent/60"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => openChat(c.id)}
+                            className="min-w-0 flex-1 truncate text-left"
+                            title={c.title}
+                          >
+                            {c.title}
+                          </button>
+                          <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                            <button
+                              type="button"
+                              aria-label="Rename chat"
+                              onClick={() => {
+                                setEditingId(c.id);
+                                setDraftTitle(c.title);
+                              }}
+                              className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Delete chat"
+                              onClick={() => deleteChat(c.id)}
+                              className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
-        <div className="space-y-2 border-t pt-3">
-          <div className="flex items-center gap-2 rounded-md bg-secondary/60 px-3 py-2 text-sm">
+        {/* Footer */}
+        <div className="mt-2 space-y-2 border-t pt-3">
+          <Button asChild variant="ghost" className="h-9 w-full justify-start">
+            <Link href="/dashboard">
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
+          <div className="flex items-center gap-2 rounded-lg bg-card px-3 py-2 text-sm">
             <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span className="font-mono">
+            <span className="font-semibold">
               {balance === undefined
                 ? "…"
                 : balance === null
@@ -143,7 +244,13 @@ export function ChatShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Chat key={convKey} onMenu={() => setOpen(true)} onNewChat={newChat} />
+        <Chat
+          key={activeId}
+          initialMessages={active?.messages ?? []}
+          onMessagesChange={setActiveMessages}
+          onMenu={() => setOpen(true)}
+          onNewChat={handleNewChat}
+        />
       </div>
     </div>
   );

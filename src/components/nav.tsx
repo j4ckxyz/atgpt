@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
 import { SITE } from "@/lib/site";
 
 const links = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/chat", label: "Chat", icon: MessagesSquare },
+  { href: "/", label: "Chat", icon: MessagesSquare },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 
 export function Nav() {

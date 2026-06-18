@@ -1,5 +1,7 @@
 # co/core console
 
+**▶ Live demo: [cocore-webapp.vercel.app](https://cocore-webapp.vercel.app)**
+
 > ⚠️ **Unofficial demo.** A small, community-built console for the
 > [co/core](https://console.cocore.dev) cooperative — an OpenAI-compatible
 > network of attested Apple-Silicon Macs serving local inference. Not affiliated
@@ -20,9 +22,14 @@ Built with the App Router, Tailwind v4, and shadcn/ui (new‑york). **Auto
 light/dark** following your OS. Designed to deploy to Vercel with zero
 configuration.
 
-| Dark | Light |
-| ---- | ----- |
-| ![Sign-in, dark](docs/login-dark.png) | ![Sign-in, light](docs/login-light.png) |
+![Chat, dark](docs/chat-dark.png)
+
+| Chat (light) | Sign in |
+| ------------ | ------- |
+| ![Chat, light](docs/chat-light.png) | ![Sign-in](docs/login-dark.png) |
+
+Chat is the primary interface (ChatGPT-style); the dashboard lives at
+`/dashboard`.
 
 ## How auth works
 

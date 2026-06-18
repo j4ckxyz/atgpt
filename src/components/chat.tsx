@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { prettyModel } from "@/lib/models";
 import type { ModelSummary } from "@/lib/cocore";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -295,7 +296,7 @@ export function Chat({
           {models.length === 0 && <option value="">Loading models…</option>}
           {models.map((m) => (
             <option key={m.modelId} value={m.modelId}>
-              {m.modelId}
+              {prettyModel(m.modelId)}
             </option>
           ))}
         </Select>
@@ -413,7 +414,7 @@ export function Chat({
             </div>
             {selected && (
               <p className="mt-5 text-center text-xs text-muted-foreground">
-                {selected.modelId} · {selected.machineCount} machine
+                {prettyModel(selected.modelId)} · {selected.machineCount} machine
                 {selected.machineCount === 1 ? "" : "s"} on the network
               </p>
             )}

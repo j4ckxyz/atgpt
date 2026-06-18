@@ -30,11 +30,11 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
-        <Link href="/" className="mr-3 flex items-center gap-2 font-mono text-sm">
-          <span className="grid h-6 w-6 place-items-center rounded bg-primary text-primary-foreground font-bold">
+        <Link href="/" className="mr-3 flex items-center gap-2 text-sm">
+          <span className="grid h-7 w-7 place-items-center rounded-xl bg-primary text-primary-foreground text-xs font-extrabold">
             co
           </span>
-          <span className="font-semibold tracking-tight">co/core</span>
+          <span className="font-bold tracking-tight">co/core</span>
         </Link>
         <Badge variant="outline" className="mr-2 hidden sm:inline-flex">
           demo

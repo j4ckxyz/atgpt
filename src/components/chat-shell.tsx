@@ -68,11 +68,11 @@ export function ChatShell() {
         )}
       >
         <div className="mb-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-mono text-sm">
-            <span className="grid h-7 w-7 place-items-center rounded bg-primary font-bold text-primary-foreground">
+          <Link href="/" className="flex items-center gap-2 text-sm">
+            <span className="grid h-7 w-7 place-items-center rounded-xl bg-primary text-xs font-extrabold text-primary-foreground">
               co
             </span>
-            <span className="font-semibold tracking-tight">co/core</span>
+            <span className="font-bold tracking-tight">co/core</span>
             <Badge variant="outline" className="ml-1">
               demo
             </Badge>

@@ -1,25 +1,24 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Nunito, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const nunito = Nunito({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-nunito",
   display: "swap",
 });
 
-const spaceMono = Space_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-space-mono",
+  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "co/core console",
+  title: "co/core — chat",
   description:
-    "Chat across the co/core cooperative, spend credits, and watch your agent's balance.",
+    "A friendly, distributed chat. Talk to the co/core cooperative, your way.",
 };
 
 export default function RootLayout({
@@ -30,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} ${spaceMono.variable} font-sans antialiased min-h-screen`}
+        className={`${nunito.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen`}
       >
         {children}
       </body>

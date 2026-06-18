@@ -52,16 +52,16 @@ export function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader>
         <div className="mb-2 flex items-center justify-between">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground font-mono font-bold">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-sm font-extrabold text-primary-foreground">
             co
           </div>
           <Badge variant="outline">demo</Badge>
         </div>
-        <CardTitle className="text-xl">Sign in to co/core</CardTitle>
+        <CardTitle className="text-xl">Welcome to co/core</CardTitle>
         <CardDescription>
-          An unofficial demo console. Your co/core API key is your identity — it
-          resolves to your DID server-side. Paste a <code>cocore-…</code> key
-          below to spend credits and chat across the cooperative.
+          A friendly, distributed chat. Sign in with your co/core key to start
+          talking. Your key is how the network knows you, and how your messages
+          get paid for.
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
@@ -88,8 +88,8 @@ export function LoginForm() {
             </p>
           )}
           <p className="text-xs text-muted-foreground">
-            The key is stored only in a secure, httpOnly cookie on this site —
-            it never reaches client-side JavaScript.
+            Your key is kept in a secure cookie on this site only. It is never
+            exposed to the page or shared with anyone else.
           </p>
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-3">
@@ -104,7 +104,7 @@ export function LoginForm() {
               rel="noreferrer"
               className="inline-flex items-center gap-1 hover:text-foreground"
             >
-              No key? Mint one
+              No key? Get one
               <ExternalLink className="h-3 w-3" />
             </a>
             <a

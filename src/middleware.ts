@@ -29,5 +29,5 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // Protect the app pages; leave API routes and assets alone.
-  matcher: ["/", "/chat", "/dashboard"],
+  matcher: ["/", "/chat", "/dashboard", "/settings"],
 };

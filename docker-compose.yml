@@ -1,0 +1,18 @@
+services:
+  atgpt:
+    build: .
+    image: atgpt
+    ports:
+      - "3000:3000"
+    # Reads AUTH_SECRET (required) and optional COCORE_BASE_URL from .env.
+    # Create .env from .env.example first: AUTH_SECRET=$(openssl rand -base64 32)
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/atgpt.db
+    volumes:
+      - atgpt-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  atgpt-data:

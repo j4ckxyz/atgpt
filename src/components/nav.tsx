@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { LogOut, LayoutDashboard, MessagesSquare, Github } from "lucide-react";
+import {
+  LogOut,
+  LayoutDashboard,
+  MessagesSquare,
+  Github,
+  Sparkles,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +19,7 @@ import { SITE } from "@/lib/site";
 const links = [
   { href: "/", label: "Chat", icon: MessagesSquare },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/settings", label: "Settings", icon: Sparkles },
 ];
 
 export function Nav() {
@@ -31,13 +38,13 @@ export function Nav() {
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-2 px-4">
         <Link href="/" className="mr-3 flex items-center gap-2 text-sm">
-          <span className="grid h-7 w-7 place-items-center rounded-xl bg-primary text-primary-foreground text-xs font-extrabold">
-            co
+          <span className="grid h-7 w-7 place-items-center rounded-xl bg-primary text-primary-foreground text-sm font-extrabold">
+            @
           </span>
-          <span className="font-bold tracking-tight">co/core</span>
+          <span className="font-bold tracking-tight">atGPT</span>
         </Link>
         <Badge variant="outline" className="mr-2 hidden sm:inline-flex">
-          demo
+          beta
         </Badge>
 
         <nav className="flex items-center gap-1">

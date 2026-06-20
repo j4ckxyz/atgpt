@@ -12,6 +12,7 @@ import {
   X,
   Trash2,
   Pencil,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export function ChatShell() {
   const {
     activeId,
     active,
+    activeReady,
     history,
     newChat,
     selectChat,
@@ -100,25 +102,28 @@ export function ChatShell() {
     <div className="flex h-screen overflow-hidden">
       {open && (
         <div
+          aria-hidden="true"
           className="fixed inset-0 z-30 bg-black/40 md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       <aside
+        id="sidebar-nav"
+        aria-label="Navigation"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col border-r bg-secondary/40 p-3 transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 -translate-x-full flex-col border-r bg-secondary/40 p-3 transition-transform duration-300 ease-out md:static md:translate-x-0",
           open && "translate-x-0"
         )}
       >
         <div className="mb-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-sm">
-            <span className="grid h-7 w-7 place-items-center rounded-xl bg-primary text-xs font-extrabold text-primary-foreground">
-              co
+            <span className="grid h-7 w-7 place-items-center rounded-xl bg-primary text-sm font-extrabold text-primary-foreground">
+              @
             </span>
-            <span className="font-bold tracking-tight">co/core</span>
+            <span className="font-bold tracking-tight">atGPT</span>
             <Badge variant="outline" className="ml-1">
-              demo
+              beta
             </Badge>
           </Link>
           <Button
@@ -126,6 +131,7 @@ export function ChatShell() {
             size="icon"
             className="md:hidden"
             onClick={() => setOpen(false)}
+            aria-label="Close navigation"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -172,7 +178,7 @@ export function ChatShell() {
                       ) : (
                         <div
                           className={cn(
-                            "group flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors",
+                            "group flex min-h-[44px] items-center gap-1 rounded-lg px-2 py-2 text-sm transition-colors active:bg-accent/80",
                             isActive
                               ? "bg-accent text-accent-foreground"
                               : "hover:bg-accent/60"
@@ -186,7 +192,7 @@ export function ChatShell() {
                           >
                             {c.title}
                           </button>
-                          <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                          <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
                             <button
                               type="button"
                               aria-label="Rename chat"
@@ -194,7 +200,7 @@ export function ChatShell() {
                                 setEditingId(c.id);
                                 setDraftTitle(c.title);
                               }}
-                              className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+                              className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground active:bg-background active:text-foreground"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
@@ -202,7 +208,7 @@ export function ChatShell() {
                               type="button"
                               aria-label="Delete chat"
                               onClick={() => deleteChat(c.id)}
-                              className="grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive"
+                              className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive active:bg-background active:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -218,7 +224,10 @@ export function ChatShell() {
         </div>
 
         {/* Footer */}
-        <div className="mt-2 space-y-2 border-t pt-3">
+        <div
+          className="mt-2 space-y-2 border-t pt-3"
+          style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom))" }}
+        >
           <Button asChild variant="ghost" className="h-9 w-full justify-start">
             <Link href="/dashboard">
               <LayoutDashboard className="h-4 w-4" />
@@ -257,13 +266,19 @@ export function ChatShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Chat
-          key={activeId}
-          initialMessages={active?.messages ?? []}
-          onMessagesChange={setActiveMessages}
-          onMenu={() => setOpen(true)}
-          onNewChat={handleNewChat}
-        />
+        {activeReady ? (
+          <Chat
+            key={activeId}
+            initialMessages={active?.messages ?? []}
+            onMessagesChange={setActiveMessages}
+            onMenu={() => setOpen(true)}
+            onNewChat={handleNewChat}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
       </div>
     </div>
   );

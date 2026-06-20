@@ -214,7 +214,7 @@ export function Dashboard({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Your standing in the co/core cooperative.
+            Here&apos;s where you stand on the network today.
           </p>
         </div>
         <Button
@@ -343,7 +343,7 @@ export function Dashboard({
         rel="noreferrer"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
-        Open the full co/core console
+        Open co/core console
         <ArrowUpRight className="h-3 w-3" />
       </a>
     </div>

@@ -7,10 +7,10 @@ import {
   Square,
   Users,
   Globe,
-  Bot,
   SlidersHorizontal,
   Menu,
   PenSquare,
+  ChevronRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -40,10 +40,10 @@ const ERROR_COPY: Record<string, string> = {
 };
 
 const SUGGESTIONS = [
-  "Explain how the co/core exchange routes a request.",
-  "Write a haiku about decentralized compute.",
-  "Give me three ideas for a weekend project.",
-  "Summarize what an attested provider is.",
+  "Explain how co/core routes requests across the network.",
+  "Write a short poem about decentralized AI.",
+  "Give me three ideas for a side project this weekend.",
+  "What's the difference between temperature and top_p?",
 ];
 
 export function Chat({
@@ -74,6 +74,9 @@ export function Chat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const atBottomRef = useRef(true);
+  const rawRef = useRef(""); // raw, unsanitized text of the streaming reply
+  const settingsReady = useRef(false);
+  const lastSavedRef = useRef("");
 
   function onScroll() {
     const el = scrollRef.current;
@@ -103,22 +106,75 @@ export function Chat({
 
   const selected = models.find((m) => m.modelId === model);
 
+  // Load available models and the account's saved preferences together so the
+  // picker and sliders reflect what was chosen last (synced across devices).
   useEffect(() => {
-    fetch("/api/models")
-      .then((r) => r.json())
-      .then((d) => {
-        const list: ModelSummary[] = d?.models ?? [];
-        const sorted = [...list].sort(
-          (a, b) => b.machineCount - a.machineCount
-        );
-        setModels(sorted);
-        // Prefer a real model over the "stub" echo for the default.
-        const preferred =
-          sorted.find((m) => m.modelId !== "stub") ?? sorted[0];
-        if (preferred) setModel(preferred.modelId);
-      })
-      .catch(() => {});
+    let cancelled = false;
+    Promise.all([
+      fetch("/api/models")
+        .then((r) => r.json())
+        .catch(() => ({})),
+      fetch("/api/settings", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([modelsData, settingsData]) => {
+      if (cancelled) return;
+      const list: ModelSummary[] = modelsData?.models ?? [];
+      const sorted = [...list].sort((a, b) => b.machineCount - a.machineCount);
+      setModels(sorted);
+
+      const s = settingsData?.settings;
+      if (s) {
+        if (typeof s.friendsOnly === "boolean") setFriendsOnly(s.friendsOnly);
+        if (typeof s.temperature === "number") setTemperature(s.temperature);
+        if (typeof s.topP === "number") setTopP(s.topP);
+        if (typeof s.maxTokens === "number") setMaxTokens(s.maxTokens);
+      }
+
+      // Prefer the saved model if it's still being served, else a real model
+      // over the "stub" echo.
+      const savedAvailable =
+        s?.model && sorted.some((m) => m.modelId === s.model);
+      const preferred = sorted.find((m) => m.modelId !== "stub") ?? sorted[0];
+      const chosen = savedAvailable ? s.model : preferred?.modelId;
+      if (chosen) setModel(chosen);
+
+      // Record the loaded snapshot so we don't immediately echo it back.
+      lastSavedRef.current = JSON.stringify({
+        model: chosen ?? "",
+        friendsOnly: s?.friendsOnly ?? false,
+        temperature: s?.temperature ?? 0.7,
+        topP: s?.topP ?? 1,
+        maxTokens: s?.maxTokens ?? 1024,
+      });
+      settingsReady.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // Persist preference changes (debounced) once the initial load has applied.
+  useEffect(() => {
+    if (!settingsReady.current) return;
+    const snap = JSON.stringify({
+      model,
+      friendsOnly,
+      temperature,
+      topP,
+      maxTokens,
+    });
+    if (snap === lastSavedRef.current) return;
+    const t = setTimeout(() => {
+      lastSavedRef.current = snap;
+      fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: snap,
+      }).catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [model, friendsOnly, temperature, topP, maxTokens]);
 
   // Follow new output only when the user is already at the bottom.
   useEffect(() => {
@@ -147,7 +203,8 @@ export function Chat({
     setInput("");
     setStreaming(true);
     atBottomRef.current = true; // jump to the message you just sent
-    setMessages((m) => [...m, { role: "assistant", content: "" }]);
+    rawRef.current = "";
+    setMessages((m) => [...m, { role: "assistant", content: "", reasoning: "" }]);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -227,16 +284,28 @@ export function Chat({
         if (data === "[DONE]") return;
         try {
           const json = JSON.parse(data);
+          // co/core can emit an inline error frame mid-stream (e.g. a provider
+          // or payment failure). Surface it instead of leaving an empty reply.
+          if (json?.error) {
+            const code = json.error.code;
+            failAssistant(
+              (code && ERROR_COPY[code]) ||
+                json.error.message ||
+                "The provider returned an error."
+            );
+            return;
+          }
           const delta: string | undefined = json?.choices?.[0]?.delta?.content;
           if (delta) {
+            rawRef.current += delta;
+            // Split the running output into the clean answer and the hidden
+            // reasoning so each is stored (and persisted) separately.
+            const { text, reasoning } = sanitizeAssistant(rawRef.current);
             setMessages((m) => {
               const copy = [...m];
               const last = copy[copy.length - 1];
               if (last?.role === "assistant") {
-                copy[copy.length - 1] = {
-                  ...last,
-                  content: last.content + delta,
-                };
+                copy[copy.length - 1] = { ...last, content: text, reasoning };
               }
               return copy;
             });
@@ -264,13 +333,14 @@ export function Chat({
           {error}
         </p>
       )}
-      <div className="flex items-end gap-2 rounded-[28px] border bg-card px-2.5 py-2 shadow-sm transition-colors focus-within:border-ring/60">
+      <div className="flex items-end gap-2 rounded-[28px] border bg-card px-2.5 py-2 shadow-sm transition-colors focus-within:border-ring">
         <Textarea
           ref={taRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Message the cooperative…"
+          placeholder="Message atGPT…"
+          aria-label="Message atGPT"
           rows={1}
           className="max-h-[200px] min-h-[40px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-base shadow-none focus-visible:ring-0"
           disabled={streaming}
@@ -280,8 +350,8 @@ export function Chat({
             type="button"
             onClick={stop}
             size="icon"
-            className="h-9 w-9 shrink-0 rounded-full"
-            title="Stop"
+            className="h-11 w-11 shrink-0 rounded-full active:opacity-75"
+            aria-label="Stop generating"
           >
             <Square className="h-4 w-4" />
           </Button>
@@ -290,25 +360,28 @@ export function Chat({
             type="button"
             onClick={() => send()}
             size="icon"
-            className="h-9 w-9 shrink-0 rounded-full"
+            className="h-11 w-11 shrink-0 rounded-full active:opacity-75"
             disabled={!input.trim() || !model}
-            title="Send"
+            aria-label="Send message"
           >
             <ArrowUp className="h-4 w-4" />
           </Button>
         )}
       </div>
       <p className="mt-2 text-center text-xs text-muted-foreground">
-        {friendsOnly
-          ? "Routing limited to your friends. "
-          : "Routing across the open network. "}
-        Replies come from strangers&apos; attested Macs and can be wrong.
+        {friendsOnly ? "Friends-only routing. " : "Open network routing. "}
+        Responses come from co/core&apos;s distributed nodes and can be wrong.
       </p>
     </div>
   );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* Screen-reader status for streaming */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {streaming ? "atGPT is responding…" : ""}
+      </div>
+
       {/* Top bar */}
       <header className="flex items-center gap-2 border-b px-3 py-2.5">
         <Button
@@ -316,6 +389,8 @@ export function Chat({
           size="icon"
           className="md:hidden"
           onClick={onMenu}
+          aria-label="Open navigation"
+          aria-controls="sidebar-nav"
         >
           <Menu className="h-4 w-4" />
         </Button>
@@ -324,7 +399,8 @@ export function Chat({
           value={model}
           onChange={(e) => setModel(e.target.value)}
           disabled={streaming}
-          className="h-8 w-auto max-w-[60vw] border-0 bg-transparent pr-7 font-medium shadow-none hover:bg-accent"
+          aria-label="Model"
+          className="h-10 w-auto max-w-[60vw] border-0 bg-transparent pr-7 font-medium shadow-none hover:bg-accent"
         >
           {models.length === 0 && <option value="">Loading models…</option>}
           {models.map((m) => (
@@ -340,6 +416,7 @@ export function Chat({
             variant={friendsOnly ? "default" : "outline"}
             size="sm"
             onClick={() => setFriendsOnly((v) => !v)}
+            aria-pressed={friendsOnly}
             title="Friends-only changes routing only — machine counts shown are network-wide"
           >
             {friendsOnly ? (
@@ -356,6 +433,8 @@ export function Chat({
             variant={showParams ? "secondary" : "outline"}
             size="sm"
             onClick={() => setShowParams((v) => !v)}
+            aria-expanded={showParams}
+            aria-controls="params-panel"
             title="Sampling parameters"
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -367,7 +446,7 @@ export function Chat({
             size="icon"
             className="md:hidden"
             onClick={onNewChat}
-            title="New chat"
+            aria-label="New chat"
           >
             <PenSquare className="h-4 w-4" />
           </Button>
@@ -376,7 +455,7 @@ export function Chat({
 
       {/* Sampling params */}
       {showParams && (
-        <div className="grid grid-cols-1 gap-3 border-b bg-muted/30 px-4 py-3 sm:grid-cols-3">
+        <div id="params-panel" className="grid grid-cols-1 gap-3 border-b bg-muted/30 px-4 py-3 sm:grid-cols-3">
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">
               temperature · {temperature.toFixed(2)}
@@ -428,6 +507,11 @@ export function Chat({
         /* Centered, ChatGPT-style empty state */
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4">
           <div className="w-full max-w-2xl">
+            <div className="mb-5 flex justify-center">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-xl font-extrabold text-primary-foreground">
+                @
+              </span>
+            </div>
             <h1 className="mb-6 text-center text-2xl font-semibold tracking-tight sm:text-3xl">
               What can I help with?
             </h1>
@@ -439,7 +523,7 @@ export function Chat({
                   type="button"
                   onClick={() => send(s)}
                   disabled={!model}
-                  className="rounded-full border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                  className="min-h-[44px] rounded-full border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground disabled:opacity-50"
                 >
                   {s}
                 </button>
@@ -458,6 +542,9 @@ export function Chat({
           <div
             ref={scrollRef}
             onScroll={onScroll}
+            role="log"
+            aria-label="Conversation"
+            aria-relevant="additions"
             className="min-h-0 flex-1 overflow-y-auto"
           >
             <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
@@ -469,12 +556,20 @@ export function Chat({
                     </div>
                   </div>
                 ) : (
-                  <AssistantMessage key={i} content={m.content} />
+                  <AssistantMessage
+                    key={i}
+                    content={m.content}
+                    reasoning={m.reasoning}
+                    live={streaming && i === messages.length - 1}
+                  />
                 )
               )}
             </div>
           </div>
-          <div className="px-4 pb-4">
+          <div
+            className="px-4"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
             <div className="mx-auto max-w-3xl">{composer}</div>
           </div>
         </>
@@ -483,22 +578,82 @@ export function Chat({
   );
 }
 
-function AssistantMessage({ content }: { content: string }) {
-  const { text, thinking } = sanitizeAssistant(content);
+function AssistantMessage({
+  content,
+  reasoning,
+  live,
+}: {
+  content: string;
+  reasoning?: string | null;
+  live?: boolean;
+}) {
+  const hasReasoning = !!reasoning && reasoning.trim().length > 0;
+  // "Thinking" = actively streaming reasoning before any answer has arrived.
+  const thinkingNow = !!live && !content;
+
   return (
     <div className="flex gap-3">
-      <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-        <Bot className="h-4 w-4" />
+      <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-primary text-xs font-extrabold text-primary-foreground">
+        @
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
-        {text ? (
-          <Markdown content={text} />
+        {hasReasoning && <Reasoning text={reasoning!.trim()} live={thinkingNow} />}
+        {content ? (
+          <Markdown content={content} />
         ) : (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {thinking ? "Thinking…" : ""}
-          </div>
+          !hasReasoning &&
+          live && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Thinking…
+            </div>
+          )
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Collapsible "Thinking" dropdown. Auto-opens while the model is reasoning,
+ *  then collapses once the answer starts. Height animates via grid-rows. */
+function Reasoning({ text, live }: { text: string; live: boolean }) {
+  const [open, setOpen] = useState(live);
+  const wasLive = useRef(live);
+  useEffect(() => {
+    // Collapse automatically the moment thinking finishes.
+    if (wasLive.current && !live) setOpen(false);
+    wasLive.current = live;
+  }, [live]);
+
+  return (
+    <div className="mb-2">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {live ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              open && "rotate-90"
+            )}
+          />
+        )}
+        {live ? "Thinking…" : "Thoughts"}
+      </button>
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-1.5 whitespace-pre-wrap rounded-lg bg-secondary/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            {text}
+          </div>
+        </div>
       </div>
     </div>
   );

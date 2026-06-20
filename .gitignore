@@ -2,6 +2,7 @@
 /.next/
 /out/
 /build
+/data
 .DS_Store
 *.pem
 .env*.local

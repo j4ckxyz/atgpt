@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { fetchAgentStatus, SESSION_COOKIE } from "@/lib/cocore";
+import { refreshPersonalization } from "@/lib/personalize";
+import { DID_COOKIE, signDid } from "@/lib/session";
+import { ensureUser } from "@/lib/users";
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   let apiKey: string | undefined;
@@ -36,13 +41,33 @@ export async function POST(req: Request) {
     );
   }
 
+  // Provision the account (keyed on DID) for cross-device sync.
+  const did = result.data.did;
+  try {
+    await ensureUser(did);
+  } catch (e) {
+    console.error("ensureUser failed", e);
+    return NextResponse.json(
+      { error: "Could not initialise your account storage." },
+      { status: 500 }
+    );
+  }
+
+  // Kick off AT Proto ingestion in the background (throttled; respects the
+  // personalization switch). Never blocks sign-in.
+  void refreshPersonalization(did).catch((e) =>
+    console.error("background personalization refresh failed", e)
+  );
+
   const res = NextResponse.json({ ok: true, status: result.data });
-  res.cookies.set(SESSION_COOKIE, apiKey, {
+  const cookieBase = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge: 60 * 60 * 24 * 30, // 30 days
-  });
+  };
+  res.cookies.set(SESSION_COOKIE, apiKey, cookieBase);
+  res.cookies.set(DID_COOKIE, signDid(did), cookieBase);
   return res;
 }

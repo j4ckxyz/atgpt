@@ -22,9 +22,32 @@ describe("sanitizeAssistant", () => {
     expect(sanitizeAssistant(raw).text).toBe("A Mac mini is a small desktop.");
   });
 
-  it("removes closed <think> blocks", () => {
+  it("captures harmony analysis as reasoning", () => {
+    const raw =
+      "<|channel|>analysis<|message|>The user wants X. Let me reason...<|end|>" +
+      "<|start|>assistant<|channel|>final<|message|>A Mac mini is a small desktop.";
+    expect(sanitizeAssistant(raw).reasoning).toBe(
+      "The user wants X. Let me reason..."
+    );
+  });
+
+  it("removes closed <think> blocks and keeps their content as reasoning", () => {
     const raw = "<think>secret reasoning here</think>The answer is 42.";
-    expect(sanitizeAssistant(raw).text).toBe("The answer is 42.");
+    const { text, reasoning } = sanitizeAssistant(raw);
+    expect(text).toBe("The answer is 42.");
+    expect(reasoning).toBe("secret reasoning here");
+  });
+
+  it("exposes the in-progress thought while thinking", () => {
+    const raw = "<think>still reasoning, not done";
+    const { text, reasoning, thinking } = sanitizeAssistant(raw);
+    expect(text).toBe("");
+    expect(thinking).toBe(true);
+    expect(reasoning).toBe("still reasoning, not done");
+  });
+
+  it("reports no reasoning for clean answers", () => {
+    expect(sanitizeAssistant("Just a normal answer.").reasoning).toBe("");
   });
 
   it("hides a dangling <think> mid-stream", () => {

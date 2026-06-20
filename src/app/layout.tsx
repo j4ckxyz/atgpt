@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Nunito, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
@@ -16,9 +16,14 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "co/core — chat",
-  description:
-    "A friendly, distributed chat. Talk to the co/core cooperative, your way.",
+  title: "atGPT",
+  description: "atGPT — a ChatGPT-style interface for the co/core network.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

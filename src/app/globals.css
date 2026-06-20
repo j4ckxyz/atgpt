@@ -191,9 +191,11 @@ body {
 }
 .md blockquote {
   margin: 0.8em 0;
-  padding: 0.2em 0 0.2em 1em;
-  border-left: 3px solid var(--border);
+  padding: 0.55em 0.9em;
+  background: color-mix(in oklch, var(--secondary) 70%, transparent);
+  border-radius: calc(var(--radius) - 6px);
   color: var(--muted-foreground);
+  font-style: italic;
 }
 .md hr {
   margin: 1.2em 0;

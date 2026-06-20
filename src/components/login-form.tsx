@@ -53,15 +53,14 @@ export function LoginForm() {
       <CardHeader>
         <div className="mb-2 flex items-center justify-between">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-sm font-extrabold text-primary-foreground">
-            co
+            @
           </div>
-          <Badge variant="outline">demo</Badge>
+          <Badge variant="outline">beta</Badge>
         </div>
-        <CardTitle className="text-xl">Welcome to co/core</CardTitle>
+        <CardTitle className="text-xl">Welcome to atGPT</CardTitle>
         <CardDescription>
-          A friendly, distributed chat. Sign in with your co/core key to start
-          talking. Your key is how the network knows you, and how your messages
-          get paid for.
+          A ChatGPT-style interface for the co/core distributed network. Sign in
+          with your co/core API key to start chatting.
         </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit}>
@@ -74,7 +73,7 @@ export function LoginForm() {
                 id="apiKey"
                 type="password"
                 autoComplete="off"
-                placeholder="cocore-…"
+                placeholder="sk-cocore-…"
                 className="pl-9 font-mono"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
